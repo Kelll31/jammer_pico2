@@ -73,9 +73,9 @@ CELLULAR_MAX_FREQ = CELLULAR_2600MHZ_FREQ
 UI_SCALE = 1               # Масштаб шрифта (1 или 2)
 UI_FONT_COLOR = 0xFFFF     # Белый
 UI_BG_COLOR = 0x0000       # Чёрный
-UI_HEADER_COLOR = 0x4208   # Тёмно-серый
-UI_BUTTON_BG = 0x8410      # Серый
-UI_BUTTON_ACTIVE_BG = 0xC618  # Светло-серый
+UI_HEADER_COLOR = 0x2104   # Ещё более тёмно-серый
+UI_BUTTON_BG = 0x4208      # Тёмно-серый
+UI_BUTTON_ACTIVE_BG = 0x6310  # Чуть светлее тёмно-серого
 UI_BUTTON_BORDER = 0xFFFF  # Белый
 
 # Размеры кнопок
