@@ -5,11 +5,15 @@
 
 import time
 import config
+import _thread
 from ili9341 import ILI9341
 from xpt2046 import XPT2046
 from jammer_signal import JammerSignal
 from settings import Settings
 from ui_manager import UIManager
+from radio_cc1101 import Radio_CC1101
+from radio_si4732 import Radio_Si4732
+from gui import GUI_Framework
 
 class KELL31Jammer:
     """Основной класс джаммера"""
@@ -26,6 +30,14 @@ class KELL31Jammer:
         self.last_touch_check = 0
         self.last_settings_save = 0
         
+        # Multicore IPC
+        self.rf_task_lock = _thread.allocate_lock()
+
+        # Placeholder hardware integration variables
+        self.radio_cc1101 = None
+        self.radio_si4732 = None
+        self.gui_framework = None
+
         # Состояния для отслеживания изменений
         self.last_freq_mode = None
         self.last_mode = None
@@ -63,6 +75,19 @@ class KELL31Jammer:
         self.ui = UIManager(self.display, self.jammer, self.settings)
         print("    UI инициализирован")
         
+        # Initializing the App-Based Touch GUI and external modules
+        print("  Инициализация новых GUI и RF модулей...")
+        self.gui_framework = GUI_Framework(self.display, self.touch)
+
+        # Загружаем главное меню LVGL
+        print("  Отрисовка главного меню LVGL...")
+        self.gui_framework.render_main_menu()
+
+        # Note: Proper bus initialization with CS handling should be done before.
+        # This is basic initialization just for architecture setup.
+        # self.radio_cc1101 = Radio_CC1101(spi_bus, config.CC1101_CS_PIN)
+        # self.radio_si4732 = Radio_Si4732(i2c_bus)
+
         # Сохраняем начальные состояния
         self.last_freq_mode = self.jammer.get_freq_mode()
         self.last_mode = self.jammer.get_mode()
@@ -154,19 +179,42 @@ class KELL31Jammer:
             
             print(f"State: {state_name} | Freq: {freq_name} | Mode: {mode_name} | Power: {power}%")
     
+    def rf_core_loop(self):
+        """Real-time RF Tasks running on Core 1"""
+        print("Core 1: Запуск потока RF-задач...")
+        while self.running:
+            # Safely query / execute RF logic using thread lock
+            self.rf_task_lock.acquire()
+            try:
+                # Polling CC1101, processing RX interrupts, handling buffers
+                # Handling SI4732 without causing UI freezes
+                pass
+            finally:
+                self.rf_task_lock.release()
+
+            time.sleep_ms(1)
+        print("Core 1: Остановка RF потока.")
+
     def run(self):
-        """Основной цикл программы"""
-        print("Запуск основного цикла...")
+        """Основной цикл программы (Core 0: UI и файловая система)"""
+        print("Core 0: Запуск основного цикла UI...")
         self.running = True
         
+        # Start Core 1 thread for RF Tasks
+        _thread.start_new_thread(self.rf_core_loop, ())
+
         try:
             while self.running:
-                # Обработка касаний
+                # Обработка касаний и GUI (исключительно на Core 0)
                 self.process_touch()
                 
-                # Обработка UI (включает обработку джаммера)
+                # Обработка UI
                 if self.ui:
                     self.ui.process()
+
+                # Обработка событий и отрисовка LVGL (на Core 0)
+                if self.gui_framework:
+                    self.gui_framework.update()
                 
                 # Проверка изменений настроек
                 self.check_settings_changes()
