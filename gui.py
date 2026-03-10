@@ -10,7 +10,14 @@ Features:
 - Plotting functionality for real-time RAW signals from CC1101
 """
 
-import lvgl as lv
+try:
+    import lvgl as lv
+    LVGL_AVAILABLE = True
+except ImportError:
+    lv = None
+    LVGL_AVAILABLE = False
+    print("WARNING: 'lvgl' module not found. The device must be flashed with a custom micropython-lvgl firmware.")
+
 import time
 
 class GUI_Framework:
@@ -19,10 +26,16 @@ class GUI_Framework:
         self.touch = touch
 
         # Initialize LVGL Framework
-        self._init_lvgl()
+        if LVGL_AVAILABLE:
+            self._init_lvgl()
+        else:
+            print("GUI Framework running in stub mode (no LVGL).")
 
     def _init_lvgl(self):
         """Initializes the LVGL library and sets up display/touch drivers."""
+        if not LVGL_AVAILABLE:
+            return
+
         lv.init()
 
         # Display driver registration (assuming micropython-ili9341 wrapper structure)
@@ -44,6 +57,10 @@ class GUI_Framework:
 
     def render_main_menu(self):
         """Draws the icon grid for the app menu using LVGL"""
+        if not LVGL_AVAILABLE:
+            print("Stub: render_main_menu called")
+            return
+
         # Create a basic screen grid using LVGL widgets
         self.scr = lv.obj()
         lv.scr_load(self.scr)
@@ -71,6 +88,9 @@ class GUI_Framework:
 
     def update(self):
         """Processes periodic LVGL tasks and events. Must be called in the main loop."""
+        if not LVGL_AVAILABLE:
+            return
+
         # LVGL requires periodic tick updates to handle events and rendering
         lv.tick_inc(5)
         lv.task_handler()
