@@ -1,13 +1,10 @@
-# Generated Cmake Pico project file
+# Generated Cmake Pico project file - Merged for KELL31 Jammer
 
 cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# Initialise pico_sdk from installed location
-# (note this can come from environment, CMake cache etc)
 
 # == DO NOT EDIT THE FOLLOWING LINES for the Raspberry Pi Pico VS Code Extension to work ==
 if(WIN32)
@@ -23,35 +20,80 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
+
+# Устанавливаем целевую плату Pico 2 (RP2350)
 set(PICO_BOARD pico2 CACHE STRING "Board type")
 
-# Pull in Raspberry Pi Pico SDK (must be before project)
-include(pico_sdk_import.cmake)
+# Подключаем Pico SDK (файл pico_sdk_import.cmake должен лежать рядом в корне проекта)
+include(pico_sdk_import.cmake OPTIONAL)
 
-project(jammer C CXX ASM)
+project(kelll31_jammer C CXX ASM)
 
-# Initialise the Raspberry Pi Pico SDK
-pico_sdk_init()
+if (COMMAND pico_sdk_init)
+    pico_sdk_init()
+else()
+    message(WARNING "Pico SDK not found. Make sure PICO_SDK_PATH is set.")
+endif()
 
-# Add executable. Default name is the project name, version 0.1
-
-add_executable(jammer jammer.c )
-
-pico_set_program_name(jammer "jammer")
-pico_set_program_version(jammer "0.1")
-
-# Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(jammer 0)
-pico_enable_stdio_usb(jammer 0)
-
-# Add the standard library to the build
-target_link_libraries(jammer
-        pico_stdlib)
-
-# Add the standard include files to the build
-target_include_directories(jammer PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+# Исполняемый файл и исходники
+# Мы просто скомпилируем их исходники напрямую в нашем target для удобства.
+add_executable(kelll31_jammer
+    src/main.c
+    src/spi_manager.c
+    src/cc1101_hal.c
+    src/ipc_core.c
+    # Исходники pico-touchscr-sdk
+    lib/pico-touchscr-sdk/lib/assert.c
+    lib/pico-touchscr-sdk/ili9341/ili9341.c
+    lib/pico-touchscr-sdk/touch/msp2807_touch.c
+    lib/pico-touchscr-sdk/touch/msp2807_calibration.c
+    # Исходники pico-widgets
+    lib/pico-widgets/ui/ui_init.c
+    lib/pico-widgets/ui/ui_manage.c
+    lib/pico-widgets/widgets/widgets_utility.c
+    lib/pico-widgets/widgets/TopBarEventProc.c
+    lib/pico-widgets/widgets/SettingsEventProc.c
+    lib/pico-widgets/widgets/APRSEventProc.c
+    lib/pico-widgets/widgets/PSKEventProc.c
+    lib/pico-widgets/widgets/PhoneEventProc.c
+    lib/pico-widgets/widgets/CallsignEventProc.c
+    lib/pico-widgets/widgets/CalibrationEventProc.c
+    lib/pico-widgets/widgets/TerminalEventProc.c
+    # src/core1_task.c # (раскомментировать при добавлении таски для второго ядра)
 )
 
-pico_add_extra_outputs(jammer)
+# Устанавливаем имя и версию программы
+pico_set_program_name(kelll31_jammer "kelll31_jammer")
+pico_set_program_version(kelll31_jammer "1.0")
 
+# Подключаем директории с заголовочными файлами
+target_include_directories(kelll31_jammer PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-touchscr-sdk
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-touchscr-sdk/ili9341
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-touchscr-sdk/touch
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/frame
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/ui
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/widgets
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-touchscr-sdk/lib
+    ${CMAKE_CURRENT_LIST_DIR}
+)
+
+# Подключаем необходимые библиотеки из Pico SDK и наши модули
+target_link_libraries(kelll31_jammer PRIVATE
+    pico_stdlib
+    hardware_spi
+    hardware_pwm
+    hardware_i2c
+    hardware_timer
+    hardware_sync       # Необходим для mutex_t и spinlocks (Anti-Collision SPI)
+    pico_multicore      # Необходим для работы со вторым ядром (Core 1)
+    pico_util           # Необходим для очередей (queue_t) для IPC
+)
+
+# Включаем вывод стандартного потока (printf) через USB (виртуальный COM-порт) и отключаем UART
+pico_enable_stdio_usb(kelll31_jammer 1)
+pico_enable_stdio_uart(kelll31_jammer 0)
+
+# Генерируем uf2, bin, hex файлы для прошивки
+pico_add_extra_outputs(kelll31_jammer)
