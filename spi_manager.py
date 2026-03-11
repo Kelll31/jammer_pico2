@@ -9,6 +9,7 @@
 """
 
 import time
+import _thread
 import config
 from machine import Pin, SPI
 
@@ -53,14 +54,14 @@ class SPI0_Manager:
     
     def acquire_display(self, baudrate=config.DISPLAY_SPI_FREQ):
         """Получить доступ к дисплею (контекстный менеджер)"""
-        return self._DeviceContext(self, "display", self.display_cs, baudrate)
+        return self.SPIDeviceBlocker(self, "display", self.display_cs, baudrate)
     
     def acquire_touch(self, baudrate=2_500_000):
         """Получить доступ к тачскрину (контекстный менеджер)"""
-        return self._DeviceContext(self, "touch", self.touch_cs, baudrate)
+        return self.SPIDeviceBlocker(self, "touch", self.touch_cs, baudrate)
     
-    class _DeviceContext:
-        """Контекстный менеджер для безопасного доступа к устройству"""
+    class SPIDeviceBlocker:
+        """Контекстный менеджер для безопасного доступа к устройству на разделяемой SPI шине"""
         def __init__(self, manager, device_name, cs_pin, baudrate):
             self.manager = manager
             self.device_name = device_name
@@ -69,17 +70,17 @@ class SPI0_Manager:
         
         def __enter__(self):
             self.manager.lock.acquire()
-            # Деактивируем все CS
+            # Деактивируем все CS (поднимаем в HIGH)
             self.manager._set_cs_high_all()
             # Настраиваем baudrate если нужно
             self.manager._configure_for_device(self.device_name, self.baudrate)
-            # Активируем нужное устройство
+            # Активируем нужное устройство (опускаем нужный CS в LOW)
             self.cs_pin.value(0)
             self.manager.active_device = self.device_name
             return self.manager.spi
         
         def __exit__(self, exc_type, exc_val, exc_tb):
-            # Деактивируем устройство
+            # Снова возвращаем CS в HIGH
             self.cs_pin.value(1)
             self.manager.active_device = None
             self.manager.lock.release()
@@ -143,17 +144,17 @@ class SPI1_Manager:
     
     def acquire_cc1101(self):
         """Получить доступ к CC1101 (контекстный менеджер)"""
-        return self._RFDeviceContext(self, "cc1101", self.cc1101_cs)
+        return self.SPIDeviceBlocker(self, "cc1101", self.cc1101_cs)
     
     def acquire_nrf24(self):
         """Получить доступ к NRF24L01 (контекстный менеджер)"""
-        return self._RFDeviceContext(self, "nrf24", self.nrf24_cs)
+        return self.SPIDeviceBlocker(self, "nrf24", self.nrf24_cs)
     
     def acquire_sx1278(self):
         """Получить доступ к SX1278 (контекстный менеджер)"""
-        return self._RFDeviceContext(self, "sx1278", self.sx1278_cs)
+        return self.SPIDeviceBlocker(self, "sx1278", self.sx1278_cs)
     
-    class _RFDeviceContext:
+    class SPIDeviceBlocker:
         """Контекстный менеджер для безопасного доступа к RF-модулю"""
         def __init__(self, manager, device_name, cs_pin):
             self.manager = manager
