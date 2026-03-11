@@ -104,28 +104,40 @@ class UIPage:
         touched = False
         for button in self.buttons:
             if button.contains(x, y):
-                button.pressed = True
-                if button.click():
-                    touched = True
+                if not button.pressed:
+                    button.pressed = True
+                    self.needs_redraw = True
+                    if button.click():
+                        touched = True
             else:
-                button.pressed = False
+                if button.pressed:
+                    button.pressed = False
+                    self.needs_redraw = True
         return touched
+
+    def handle_touch_release(self):
+        """Сбросить состояние кнопок при отпускании"""
+        for button in self.buttons:
+            if button.pressed:
+                button.pressed = False
+                self.needs_redraw = True
 
     def draw(self, display):
         """Нарисовать страницу (должен быть переопределён)"""
         pass
 
     def update(self, display):
-        """Обновить отображение страницы"""
+        """Обновить отображение страницы и вернуть True если нужна перерисовка"""
+        redraw_happened = False
         if self.needs_redraw:
             self.draw(display)
+            # Рисуем все кнопки
+            for button in self.buttons:
+                button.draw(display)
             self.needs_redraw = False
+            redraw_happened = True
 
-        # Рисуем все кнопки
-        for button in self.buttons:
-            button.draw(display)
-
-        return self.needs_redraw
+        return redraw_happened
 
 
 class MainPage(UIPage):
@@ -471,20 +483,24 @@ class UIManager:
         page = self.get_current_page()
         return page.handle_touch(x, y)
 
+    def handle_touch_release(self):
+        """Обработать отпускание касания"""
+        page = self.get_current_page()
+        page.handle_touch_release()
+
     def update(self):
         """Обновить UI"""
         current_time = time.ticks_ms()
 
-        # Обновляем каждые 100 мс
-        if time.ticks_diff(current_time, self.last_update) >= 100:
+        # Обновляем каждые 20 мс для отзывчивости
+        if time.ticks_diff(current_time, self.last_update) >= 20:
             self.last_update = current_time
 
             # Обновляем текущую страницу
             page = self.get_current_page()
-            page.update(self.display)
-
-            # Обмениваем буферы (двойная буферизация)
-            self.display.swap_buffers()
+            if page.update(self.display):
+                # Обмениваем буферы только если была перерисовка
+                self.display.swap_buffers()
 
     def process(self):
         """Обработать UI (вызывать в основном цикле)"""
