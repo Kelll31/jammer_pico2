@@ -1,3 +1,14 @@
 {
-    "info": "This file is just used to identify a project folder."
+    "ignore": [
+        ".git/**",
+        ".vscode/**",
+        "libs/**",
+        "*.c",
+        "*.h",
+        "*.cmake",
+        "*.sh",
+        "*.md",
+        "build/**",
+        ".gitignore"
+    ]
 }
