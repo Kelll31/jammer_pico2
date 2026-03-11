@@ -53,10 +53,10 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 
-#include "../lib/assert.h"
+#include "../lib/my_assert.h"
 
 #include "msp2807_calibration.h"
-#include "../../../../include/spi_manager.h"
+#include "spi_manager.h"
 
 #define MSP2807_CMD_READ_X  0xD8
 #define MSP2807_CMD_READ_Y  0x98

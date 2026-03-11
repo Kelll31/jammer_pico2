@@ -69,11 +69,11 @@
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 
-#include "../lib/assert.h"
+#include "../lib/my_assert.h"
 
 #include "ili9341hw.h"
 #include "font_8x8.h"
-#include "../../../../include/spi_manager.h"
+#include "spi_manager.h"
 
 #define GET_DATA_BIT(p, n)  ((*((uint32_t *)(p) + ((n) >> 5)) \
         >> (31 - ((n) & 31))) & 1)

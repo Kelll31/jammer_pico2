@@ -6,7 +6,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
 //
-//  assert.h - Assertion functions for Raspberry Pi pico which use LED.
+//  assert.c - Assertion functions for Raspberry Pi pico which use LED.
 //
 //
 //  DESCRIPTION
@@ -45,9 +45,46 @@
 //  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //  THE SOFTWARE.
 ///////////////////////////////////////////////////////////////////////////////
-#include <stdbool.h>
+#include "my_assert.h"
 
-#include "pico/stdlib.h"
+void assert_(bool val)
+{
+    if(val)
+    {
+        return;
+    }
 
-void assert_(bool val);
-void assert_checkpoint(bool val, int n_blink);
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+    for(;;)
+    {
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        sleep_ms(50);
+        gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        sleep_ms(500);
+    }
+}
+
+void assert_checkpoint(bool val, int n_blink)
+{
+    if(val)
+    {
+        return;
+    }
+
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+
+    for(;;)
+    {
+        for(int i = 0; i < n_blink; ++i)
+        {
+            gpio_put(PICO_DEFAULT_LED_PIN, 1);
+            sleep_ms(50);
+            gpio_put(PICO_DEFAULT_LED_PIN, 0);
+            sleep_ms(50);
+        }
+        sleep_ms(1000);
+    }
+}
