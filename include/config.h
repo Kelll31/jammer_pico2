@@ -17,7 +17,7 @@
 // ==========================================
 #define SPI_PORT        spi0
 #define PIN_SPI0_MISO   16  // RX
-#define PIN_SPI0_CS_DUMMY 17 // Dummy CS для инициализации шины (реальное управление ручное)
+#define PIN_SPI0_CS_DUMMY 255 // Dummy CS для инициализации шины (реальное управление ручное)
 #define PIN_SPI0_SCK    18  // SCK
 #define PIN_SPI0_MOSI   19  // TX
 
