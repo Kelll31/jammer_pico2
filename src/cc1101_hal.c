@@ -93,8 +93,8 @@ void cc1101_read_fifo(uint8_t *buffer, uint8_t length)
     spi_manager_acquire(PIN_CC1101_CS, SPI0_BAUDRATE_CC1101);
 
     uint8_t addr = CC1101_RXFIFO | CC1101_READ_BURST;
-    spi_write_blocking(SPI_PORT, &addr, 1);
-spi_read_blocking(SPI_PORT, 0x00, buffer, length);
+spi_write_blocking(SPI_PORT, &addr, 1);
+    spi_read_blocking(SPI_PORT, 0x00, buffer, length);
 
     spi_manager_release(PIN_CC1101_CS);
 }

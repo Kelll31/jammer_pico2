@@ -2,7 +2,7 @@
     // === Настройки CMake Tools ===
     "cmake.sourceDirectory": "D:/kelll31scripts/jammer_pico2",
     "cmake.generator": "Ninja",
-    "cmake.cmakePath": "${userHome}/.pico-sdk/cmake/v3.31.5/bin/cmake.exe",
+    "cmake.cmakePath": "${userHome}/.pico-sdk/cmake/v3.31.5/bin/cmake",
     "cmake.configureArgs": [
         "-DCMAKE_MAKE_PROGRAM=${userHome}/.pico-sdk/ninja/v1.12.1/ninja.exe"
     ],
@@ -43,8 +43,8 @@
     // === Настройки Raspberry Pi Pico Extension ===
     "raspberry-pi-pico.cmakeAutoConfigure": true,
     "raspberry-pi-pico.useCmakeTools": true,
-    "raspberry-pi-pico.cmakePath": "${userHome}/.pico-sdk/cmake/v3.31.5/bin/cmake.exe",
-    "raspberry-pi-pico.ninjaPath": "${userHome}/.pico-sdk/ninja/v1.12.1/ninja.exe",
+    "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.31.5/bin/cmake",
+    "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
 
     // === Настройки Python и MicroPython (MicroPico) ===
     "python.languageServer": "Pylance",

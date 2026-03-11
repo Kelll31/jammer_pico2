@@ -6,11 +6,54 @@
  * микроконтроллеров RP2040 / RP2350.
  */
 
-#ifndef CONFIG_H
-#define CONFIG_H
+#include <stdbool.h>
 
-#include "hardware/spi.h"
-#include "hardware/i2c.h"
+// ==========================================
+// ТИПЫ ДАННЫХ ДЛЯ UI
+// ==========================================
+
+typedef enum {
+    kBlack,
+    kBlue,
+    kRed,
+    kMagenta,
+    kGreen,
+    kCyan,
+    kYellow,
+    kWhite
+} color_t;
+
+typedef enum {
+    SCREEN_NONE = 0,
+    SCREEN_HOME,
+    SCREEN_JAMMER,
+    SCREEN_SUBGHZ,
+    SCREEN_RADIO,
+    SCREEN_SPECTRUM,
+    SCREEN_SETTINGS
+} screen_id_t;
+
+typedef enum {
+    SCREEN_EVENT_INIT = 0,
+    SCREEN_EVENT_SHOW,
+    SCREEN_EVENT_HIDE,
+    SCREEN_EVENT_TICK,
+    SCREEN_EVENT_TOUCH,
+    SCREEN_EVENT_DEINIT
+} screen_event_t;
+
+typedef struct {
+    int mTlx;
+    int mTly;
+    int mWidth;
+    int mHeight;
+} frame_rect;
+
+typedef struct {
+    int x;
+    int y;
+    bool is_press;
+} screen_touch_data_t;
 
 // ==========================================
 // НАСТРОЙКИ ОБЩЕЙ ШИНЫ SPI0
@@ -58,5 +101,6 @@
 // ==========================================
 #define PIN_JAMMER_PWM  28  // Выход ШИМ-генератора помех
 #define PIN_LED         25  // Индикаторный светодиод (на Pico - встроенный)
+
 
 #endif // CONFIG_H

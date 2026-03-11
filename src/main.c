@@ -5,12 +5,23 @@
 #include "spi_manager.h"
 #include "cc1101_hal.h"
 #include "ipc_core.h"
+#include "screen_manager.h"
+#include "jammer_pwm.h"
+#include "queue.h"
+#include "gpio.h"
+#include "time.h"
+#include "hardware/gpio.h"
+#include "hardware/irq.h"
 
 #include <ili9341.h>
 #include <msp2807_touch.h>
 #include <msp2807_calibration.h>
 #include <ui_context.h>
 #include <ui_protos.h>
+
+// Менеджер экранов
+#include "home_screen.h"
+#include "stub_screen.h"
 
 // Прототип функции второго ядра (будет реализована на Этапе 4)
 void core1_entry(void);
@@ -58,6 +69,18 @@ int main() {
     // 5. Инициализируем ШИМ джаммера
     jammer_pwm_init();
 
+    // ==========================================
+    // ИНИЦИАЛИЗАЦИЯ МЕНЕДЖЕРА ЭКРАНОВ
+    // ==========================================
+    screen_manager_init();
+    
+    // Регистрируем все экраны
+    stub_screen_register_all();
+    screen_manager_register(home_screen_get_descriptor());
+    
+    // Переходим на главный экран
+    screen_manager_navigate(SCREEN_HOME);
+
     // 6. Запускаем второе ядро (для CC1101 и Real-Time)
     multicore_launch_core1(core1_entry);
 
@@ -76,40 +99,10 @@ int main() {
         }
         sLastTm = ktm64_now;
 
-        frame *pfActive = GetActiveFrame(pUI);
-        static frame *spfActiveM1 = NULL;
-        if(!pfActive)
-        {
-            continue;
-        }
-
-        // Если сменился активный фрейм - отрисовать его полностью
-        if(pfActive != spfActiveM1)
-        {
-            pfActive->mpfEventProc(pfActive, kEventDraw, 0, 0, pUI);
-            spfActiveM1 = pfActive;
-            continue;
-        }
-
-        // Эквивалент UItick из pico-widgets (без использования прерываний)
-        // Обновляем состояние тачскрина
-        bool kbnew_touch = GetTouchData(pUI, &pUI->mLastX, &pUI->mLastY);
-        if(kbnew_touch) { pUI->mLastTouchTm = time_us_64(); }
-
-        // Обработка кликов внутри/снаружи виджета
-        if(pUI->mLastReleaseTm > pUI->mLastTouchTm)
-        {
-            if(pfActive->mpfEventProc)
-            {
-                IsInsideRect(&pfActive->mRegion, pUI->mLastX, pUI->mLastY)
-                    ? pfActive->mpfEventProc(pfActive, kEventClickInside, pUI->mLastX, pUI->mLastY, pUI)
-                    : pfActive->mpfEventProc(pfActive, kEventClickOutside, pUI->mLastX, pUI->mLastY, pUI);
-            }
-            pUI->mLastTouchTm = ktm64_now;
-        }
-
-        // Обновление экрана (частичная перерисовка)
-        TftFullScreenSelectiveWrite(pScrCtl, 8);
+        // ==========================================
+        // ОБРАБОТКА МЕНЕДЖЕРА ЭКРАНОВ
+        // ==========================================
+        screen_manager_tick(pUI);
 
         // Неблокирующее чтение событий от Core 1 (Радио/Джаммер)
         core1_to_core0_msg_t rx_msg;

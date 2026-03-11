@@ -2,31 +2,28 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Pico Debug (CMake + Cortex-Debug)",
+            "name": "Pico Debug (Cortex-Debug)",
             "type": "cortex-debug",
             "request": "launch",
-            // 1. Указываем правильную рабочую директорию проекта
-            "cwd": "${workspaceFolder}/C",
-            // 2. Берем путь к .elf файлу напрямую из CMake Tools
+            "cwd": "${workspaceFolder}",
             "executable": "${command:cmake.launchTargetPath}",
             "servertype": "openocd",
-            "serverpath": "${userHome}/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
-            // 3. Указываем OpenOCD, где искать скрипты, не ломая cwd
+            "serverpath": "openocd",
+            "gdbPath": "riscv32-unknown-elf-gdb",
+            "toolchainPrefix": "riscv32-unknown-elf",
+            "device": "RP2350",
             "searchDir": [
                 "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts"
             ],
-            "gdbPath": "${command:raspberry-pi-pico.getGDBPath}",
-            "device": "${command:raspberry-pi-pico.getChipUppercase}",
             "configFiles": [
                 "interface/cmsis-dap.cfg",
-                "target/${command:raspberry-pi-pico.getTarget}.cfg"
+                "target/rp2350.cfg"
             ],
-            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
+            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/rp2350/hardware_regs/rp2350.svd",
             "runToEntryPoint": "main",
-            "overrideLaunchCommands": [
-                "monitor reset init",
-                // Используем тот же таргет, что и для executable
-                "load \"${command:cmake.launchTargetPath}\""
+            "postRestartCommands": [
+                "break main",
+                "continue"
             ],
             "openOCDLaunchCommands": [
                 "adapter speed 5000"
@@ -36,18 +33,13 @@
             "name": "Pico Debug (External OpenOCD)",
             "type": "cortex-debug",
             "request": "launch",
-            "cwd": "${workspaceFolder}/C",
+            "cwd": "${workspaceFolder}",
             "executable": "${command:cmake.launchTargetPath}",
             "servertype": "external",
             "gdbTarget": "localhost:3333",
-            "gdbPath": "${command:raspberry-pi-pico.getGDBPath}",
-            "device": "${command:raspberry-pi-pico.getChipUppercase}",
-            "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
-            "runToEntryPoint": "main",
-            "overrideLaunchCommands": [
-                "monitor reset init",
-                "load \"${command:cmake.launchTargetPath}\""
-            ]
+            "gdbPath": "riscv32-unknown-elf-gdb",
+            "device": "RP2350",
+            "runToEntryPoint": "main"
         }
     ]
 }

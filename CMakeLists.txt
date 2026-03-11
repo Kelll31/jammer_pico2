@@ -42,6 +42,8 @@ add_executable(kelll31_jammer
     src/spi_manager.c
     src/cc1101_hal.c
     src/ipc_core.c
+    src/home_screen.c
+    src/stub_screen.c
     # Исходники pico-touchscr-sdk
     lib/pico-touchscr-sdk/lib/my_assert.c
     lib/pico-touchscr-sdk/ili9341/ili9341.c
