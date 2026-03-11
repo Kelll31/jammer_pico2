@@ -212,9 +212,29 @@ class KELL31Jammer:
             print(f"Warning: RF modules initialization failed: {e}")
             # Продолжаем без RF модулей
         
-        # GUI фреймворк (устаревший, будет заменён в Шаге 3)
-        self.gui_framework = GUI_Framework(self.display, self.touch)
-        self.gui_framework.render_main_menu()
+        # Новый UI фреймворк (pico-widgets port)
+        from ui_core import UIManager as CoreUIManager
+        from ui_topbar import TopBar
+        from ui_screen_settings import SettingsScreen
+        from ui_frames import BaseFrame
+        from ui_widgets import Button
+
+        self.ui_core = CoreUIManager(self.display, self.touch, self.spi0_manager)
+        self.topbar = TopBar(self.ui_core, self.ipc)
+        self.ui_core.set_topbar(self.topbar)
+
+        # Предварительная инстанциация экранов (избегаем фрагментации кучи)
+        self.screen_settings = SettingsScreen(self.ui_core, self.ipc)
+
+        # Создаем главный экран для примера
+        dashboard = BaseFrame(self.ui_core, title="DASHBOARD")
+        btn_settings = Button(config.DISPLAY_WIDTH - 100, config.DISPLAY_HEIGHT - 40, 80, 30, "SETTINGS")
+        def go_settings():
+            self.ui_core.push_frame(self.screen_settings)
+        btn_settings.on_click = go_settings
+        dashboard.add_widget(btn_settings)
+
+        self.ui_core.push_frame(dashboard)
 
         # Сохраняем начальные состояния
         self.last_freq_mode = self.jammer.get_freq_mode()
@@ -409,52 +429,17 @@ class KELL31Jammer:
         _thread.start_new_thread(self.rf_core_loop, ())
 
         try:
-            # Инициализация Global Status Bar
-            from ui_manager_new import GlobalStatusBar, DashboardPage, JammerPage, SubGhzPage
-            status_bar = GlobalStatusBar(self.ipc)
-            
-            # Создание простого UI менеджера
-            current_page = "dashboard"
-            last_page_update = time.ticks_ms()
-            
             while self.running:
-                current_time = time.ticks_ms()
-                
-                # Обработка касаний (упрощённая)
-                self.process_touch()
-                
-                # Обновление статус-бара
-                status_bar.update(self.ipc)
-                
-                # Обновление UI каждые 50 мс (20 FPS)
-                if time.ticks_diff(current_time, last_page_update) >= 50:
-                    last_page_update = current_time
-                    
-                    # Очистка экрана (кроме статус-бара)
-                    self.display.fill_rect(0, status_bar.height, config.DISPLAY_WIDTH, 
-                                         config.DISPLAY_HEIGHT - status_bar.height, config.UI_BG_COLOR)
-                    
-                    # Отрисовка текущей страницы
-                    if current_page == "dashboard":
-                        self._draw_dashboard_page()
-                    elif current_page == "jammer":
-                        self._draw_jammer_page()
-                    elif current_page == "subghz":
-                        self._draw_subghz_page()
-                    # TODO: добавить остальные страницы
-                    
-                    # Отрисовка статус-бара поверх всего
-                    status_bar.draw(self.display, current_page)
-                    
-                    # Обмен буферов дисплея
-                    self.display.swap_buffers()
-                
+                # Основной обработчик UI, включает обработку касаний, обновление событий (TICK)
+                # и безопасную отрисовку с двойной буферизацией (swap_buffers) через контекст SPI
+                self.ui_core.task_handler()
+
                 # Проверка изменений настроек
                 self.check_settings_changes()
                 
                 # Небольшая задержка для снижения нагрузки на CPU
                 time.sleep_ms(1)
-                
+
         except KeyboardInterrupt:
             pass
         except Exception as e:
