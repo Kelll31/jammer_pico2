@@ -2,13 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Pico Debug (Cortex-Debug)",
-            "cwd": "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts",
-            "executable": "${command:raspberry-pi-pico.launchTargetPath}",
-            "request": "launch",
+            "name": "Pico Debug (CMake + Cortex-Debug)",
             "type": "cortex-debug",
+            "request": "launch",
+            // 1. Указываем правильную рабочую директорию проекта
+            "cwd": "${workspaceFolder}/C",
+            // 2. Берем путь к .elf файлу напрямую из CMake Tools
+            "executable": "${command:cmake.launchTargetPath}",
             "servertype": "openocd",
             "serverpath": "${userHome}/.pico-sdk/openocd/0.12.0+dev/openocd.exe",
+            // 3. Указываем OpenOCD, где искать скрипты, не ломая cwd
+            "searchDir": [
+                "${userHome}/.pico-sdk/openocd/0.12.0+dev/scripts"
+            ],
             "gdbPath": "${command:raspberry-pi-pico.getGDBPath}",
             "device": "${command:raspberry-pi-pico.getChipUppercase}",
             "configFiles": [
@@ -17,34 +23,31 @@
             ],
             "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
             "runToEntryPoint": "main",
-            // Fix for no_flash binaries, where monitor reset halt doesn't do what is expected
-            // Also works fine for flash binaries
             "overrideLaunchCommands": [
                 "monitor reset init",
-                "load \"${command:raspberry-pi-pico.launchTargetPath}\""
+                // Используем тот же таргет, что и для executable
+                "load \"${command:cmake.launchTargetPath}\""
             ],
             "openOCDLaunchCommands": [
                 "adapter speed 5000"
             ]
         },
         {
-            "name": "Pico Debug (Cortex-Debug with external OpenOCD)",
-            "cwd": "${workspaceRoot}",
-            "executable": "${command:raspberry-pi-pico.launchTargetPath}",
-            "request": "launch",
+            "name": "Pico Debug (External OpenOCD)",
             "type": "cortex-debug",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/C",
+            "executable": "${command:cmake.launchTargetPath}",
             "servertype": "external",
             "gdbTarget": "localhost:3333",
             "gdbPath": "${command:raspberry-pi-pico.getGDBPath}",
             "device": "${command:raspberry-pi-pico.getChipUppercase}",
             "svdFile": "${userHome}/.pico-sdk/sdk/2.2.0/src/${command:raspberry-pi-pico.getChip}/hardware_regs/${command:raspberry-pi-pico.getChipUppercase}.svd",
             "runToEntryPoint": "main",
-            // Fix for no_flash binaries, where monitor reset halt doesn't do what is expected
-            // Also works fine for flash binaries
             "overrideLaunchCommands": [
                 "monitor reset init",
-                "load \"${command:raspberry-pi-pico.launchTargetPath}\""
+                "load \"${command:cmake.launchTargetPath}\""
             ]
-        },
+        }
     ]
 }

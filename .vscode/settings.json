@@ -1,23 +1,29 @@
 {
+    // === Настройки CMake Tools ===
+    "cmake.sourceDirectory": "D:/kelll31scripts/jammer_pico2",
+    "cmake.generator": "Ninja",
+    "cmake.cmakePath": "${userHome}/.pico-sdk/cmake/v3.31.5/bin/cmake.exe",
+    "cmake.configureArgs": [
+        "-DCMAKE_MAKE_PROGRAM=${userHome}/.pico-sdk/ninja/v1.12.1/ninja.exe"
+    ],
+    "cmake.buildEnvironment": {
+        "PATH": "${userHome}/.pico-sdk/toolchain/RISCV_ZCB_RPI_2_2_0_3/bin;${userHome}/.pico-sdk/picotool/2.2.0-a4/picotool;${userHome}/.pico-sdk/cmake/v3.31.5/bin;${userHome}/.pico-sdk/ninja/v1.12.1;${env:PATH}"
+    },
+    
+    // Поведение интерфейса CMake
     "cmake.showSystemKits": false,
     "cmake.options.statusBarVisibility": "hidden",
     "cmake.options.advanced": {
-        "build": {
-            "statusBarVisibility": "hidden"
-        },
-        "launch": {
-            "statusBarVisibility": "hidden"
-        },
-        "debug": {
-            "statusBarVisibility": "hidden"
-        }
+        "build": { "statusBarVisibility": "hidden" },
+        "launch": { "statusBarVisibility": "hidden" },
+        "debug": { "statusBarVisibility": "hidden" }
     },
     "cmake.configureOnEdit": false,
     "cmake.automaticReconfigure": false,
-    "cmake.configureOnOpen": false,
-    "cmake.generator": "Ninja",
-    "cmake.cmakePath": "${userHome}/.pico-sdk/cmake/v3.31.5/bin/cmake",
+    "cmake.configureOnOpen": true,
     "C_Cpp.debugShortcut": false,
+
+    // === Окружение интегрированного терминала ===
     "terminal.integrated.env.windows": {
         "PICO_SDK_PATH": "${env:USERPROFILE}/.pico-sdk/sdk/2.2.0",
         "PICO_TOOLCHAIN_PATH": "${env:USERPROFILE}/.pico-sdk/toolchain/RISCV_ZCB_RPI_2_2_0_3",
@@ -33,10 +39,14 @@
         "PICO_TOOLCHAIN_PATH": "${env:HOME}/.pico-sdk/toolchain/RISCV_ZCB_RPI_2_2_0_3",
         "PATH": "${env:HOME}/.pico-sdk/toolchain/RISCV_ZCB_RPI_2_2_0_3/bin:${env:HOME}/.pico-sdk/picotool/2.2.0-a4/picotool:${env:HOME}/.pico-sdk/cmake/v3.31.5/bin:${env:HOME}/.pico-sdk/ninja/v1.12.1:${env:PATH}"
     },
+
+    // === Настройки Raspberry Pi Pico Extension ===
     "raspberry-pi-pico.cmakeAutoConfigure": true,
-    "raspberry-pi-pico.useCmakeTools": false,
-    "raspberry-pi-pico.cmakePath": "${HOME}/.pico-sdk/cmake/v3.31.5/bin/cmake",
-    "raspberry-pi-pico.ninjaPath": "${HOME}/.pico-sdk/ninja/v1.12.1/ninja",
+    "raspberry-pi-pico.useCmakeTools": true,
+    "raspberry-pi-pico.cmakePath": "${userHome}/.pico-sdk/cmake/v3.31.5/bin/cmake.exe",
+    "raspberry-pi-pico.ninjaPath": "${userHome}/.pico-sdk/ninja/v1.12.1/ninja.exe",
+
+    // === Настройки Python и MicroPython (MicroPico) ===
     "python.languageServer": "Pylance",
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.diagnosticSeverityOverrides": {
