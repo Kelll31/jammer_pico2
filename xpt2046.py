@@ -1,5 +1,6 @@
 """
 Драйвер тачскрина XPT2046 для MicroPython
+Адаптирован для безопасной работы на разделяемой шине SPI
 """
 
 import time
@@ -8,7 +9,7 @@ import config
 from machine import Pin, SPI
 from spi_manager import spi0_manager
 
-# Каналы для измерения
+# Каналы для измерения АЦП
 XPT2046_CHANNEL_X = 0x5  # Канал X
 XPT2046_CHANNEL_Y = 0x1  # Канал Y
 XPT2046_CHANNEL_Z1 = 0x3  # Канал Z1 (для измерения давления)
@@ -49,7 +50,7 @@ class XPT2046:
         # Инициализация пинов (IRQ подтянут к питанию, срабатывает по нулю)
         self.irq = Pin(irq_pin, Pin.IN, Pin.PULL_UP)
 
-        # Переменные для фильтрации и IPC
+        # Переменные для фильтрации и IPC (защита для Core 0 / Core 1)
         self.lock = _thread.allocate_lock()
         self.last_x = 0
         self.last_y = 0
@@ -58,7 +59,7 @@ class XPT2046:
         self.last_pressure = 0
         self.last_touch_time = 0
 
-        # Параметры фильтра
+        # Параметры фильтра (Anti-noise)
         self.min_flick_ms = min_flick_ms
         self.long_press_ms = long_press_ms
         self.beta_shft = beta_shft
@@ -66,7 +67,7 @@ class XPT2046:
         # Флаг касания
         self.is_touching = False
 
-        # Проверка доступности чипа (теперь корректная)
+        # Проверка доступности чипа на шине SPI
         if not self._check_presence():
             print("WARNING: Touch screen XPT2046 SPI connection failed!")
         else:
@@ -74,11 +75,8 @@ class XPT2046:
 
     def _check_presence(self):
         """
-        Проверка наличия чипа XPT2046.
-        Поскольку XPT2046 - "глупый" АЦП без регистра ID,
-        чтение ненажатого экрана дает 0 или 4095.
-        Поэтому мы просто делаем тестовую транзакцию, чтобы убедиться,
-        что шина SPI отвечает и не вызывает аппаратных исключений.
+        Проверка связи с XPT2046.
+        Делает безопасную тестовую SPI-транзакцию.
         """
         try:
             with spi0_manager.acquire_touch(self.spi_freq) as spi:
@@ -88,17 +86,22 @@ class XPT2046:
             return True
         except Exception as e:
             print(f"XPT2046 SPI Error: {e}")
+            if "extra keyword arguments" in str(e):
+                print(
+                    "ПОДСКАЗКА: Ошибка в spi_manager.py! Метод SPI.init() на Pico "
+                    "не принимает переназначение пинов (sck, mosi, cs)."
+                )
             return False
 
     def _read_channel(self, channel, spi):
-        """Чтение значения с аналогового канала (внутри лок-контекста)"""
+        """Чтение значения с аналогового канала (внутри лок-контекста SPI)"""
         # Команда: S=1 | A2 A1 A0 | MODE=0 (12-bit) | SER/DFR=0 (Differential) | PD1 PD0=00 (IRQ Enable)
         cmd = 0x80 | (channel << 4)
         tx_data = bytearray([cmd, 0x00, 0x00])
         rx_data = bytearray(3)
 
         # ПЕРВЫЙ ПРОХОД (Dummy read):
-        # Обязательно нужен для стабилизации АЦП при переключении между осями X и Y!
+        # Обязательно нужен для стабилизации АЦП при переключении между осями X и Y
         spi.write_readinto(tx_data, rx_data)
 
         # ВТОРОЙ ПРОХОД (Реальные данные):
@@ -108,7 +111,7 @@ class XPT2046:
         return result
 
     def _read_registers(self):
-        """Чтение X и Y каналов одновременно в одном SPI локе"""
+        """Чтение X и Y каналов одновременно в одном SPI локе для минимизации транзакций"""
         with spi0_manager.acquire_touch(self.spi_freq) as spi:
             raw_x = self._read_channel(XPT2046_CHANNEL_X, spi)
             raw_y = self._read_channel(XPT2046_CHANNEL_Y, spi)
@@ -119,7 +122,7 @@ class XPT2046:
         return self.irq.value() == 0
 
     def get_raw_touch(self):
-        """Опрос тачскрина с low-pass фильтрацией (без блокирующих задержек)"""
+        """Опрос тачскрина с low-pass фильтрацией без блокирующих задержек"""
         if self.beta_shft > 0:
             if self.is_touched():
                 now_ms = time.ticks_ms()
@@ -145,7 +148,7 @@ class XPT2046:
                     with self.lock:
                         self.last_x = raw_x
                         self.last_y = raw_y
-
+                        # Экспоненциальное сглаживание
                         self.xf += (
                             (raw_x << 14) - self.xf + (1 << (self.beta_shft - 1))
                         ) >> self.beta_shft
@@ -168,11 +171,11 @@ class XPT2046:
         return None, None, False
 
     def read_touch(self):
-        """Обёртка для совместимости с существующим кодом"""
+        """Обёртка для совместимости со старым кодом"""
         return self.get_raw_touch()
 
     def convert_to_screen(self, raw_x, raw_y, display_width=None, display_height=None):
-        """Преобразование сырых значений в экранные координаты"""
+        """Преобразование сырых значений АЦП в пиксельные координаты экрана"""
         from touch_calibration import touch_transform_coords
 
         if display_width is None:
@@ -182,7 +185,7 @@ class XPT2046:
 
         screen_x, screen_y = touch_transform_coords(self.cmat, raw_x, raw_y)
 
-        # Ограничение значений
+        # Ограничение значений (чтобы не улетали за пределы экрана)
         if screen_x < 0:
             screen_x = 0
         if screen_x >= display_width:
@@ -195,7 +198,7 @@ class XPT2046:
         return screen_x, screen_y
 
     def get_touch_coordinates(self, display_width=None, display_height=None):
-        """Получить координаты касания в экранных координатах"""
+        """Высокоуровневая функция получения координат касания"""
         raw_x, raw_y, valid = self.get_raw_touch()
 
         if not valid:
@@ -207,11 +210,8 @@ class XPT2046:
         return screen_x, screen_y, True
 
     def calibrate(self, points=None):
-        """
-        Калибровка тачскрина
-        """
+        """Процесс калибровки тачскрина по 4 точкам"""
         if points is None:
-            # Точки по умолчанию: углы экрана
             points = [
                 (50, 50),  # Левый верхний
                 (config.DISPLAY_WIDTH - 50, 50),  # Правый верхний
@@ -223,30 +223,25 @@ class XPT2046:
             ]
 
         print("Калибровка тачскрина. Касайтесь указанных точек...")
-
         raw_points = []
 
         for i, (screen_x, screen_y) in enumerate(points):
             print(f"Точка {i+1}: коснитесь ({screen_x}, {screen_y})")
 
-            # Ждём касания
             while not self.is_touched():
                 time.sleep(0.01)
 
-            # Читаем сырые координаты.
+            # Читаем сырые координаты
             raw_x, raw_y, valid = self.get_raw_touch()
-            # Подождём немного и перечитаем для фильтрации
-            time.sleep_ms(100)
+            time.sleep_ms(100)  # Даем стабилизироваться
             raw_x, raw_y, valid = self.get_raw_touch()
 
             if valid:
                 raw_points.append((raw_x, raw_y))
                 print(f"  Сырые значения: X={raw_x}, Y={raw_y}")
 
-            # Ждём отпускания
             while self.is_touched():
                 time.sleep(0.01)
-
             time.sleep(0.5)
 
         from touch_calibration import calculate_calibration_mat
@@ -265,10 +260,9 @@ class XPT2046:
         return self.cmat
 
     def set_calibration(self, cmat_dict):
-        """Установить калибровочную матрицу из словаря"""
+        """Установить калибровочную матрицу из JSON-словаря"""
         if not cmat_dict:
             return
-
         self.cmat.KX1 = cmat_dict.get("kx1", 0.0)
         self.cmat.KX2 = cmat_dict.get("kx2", 0.0)
         self.cmat.KX3 = cmat_dict.get("kx3", 0.0)
@@ -277,14 +271,13 @@ class XPT2046:
         self.cmat.KY3 = cmat_dict.get("ky3", 0.0)
 
     def is_touch_held(self, threshold_ms=1000):
-        """Проверка, удерживается ли касание (используя ticks_diff для защиты от переполнения)"""
+        """Проверка долгого удержания касания"""
         if not self.is_touching:
             return False
-
         current_time = time.ticks_ms()
         return time.ticks_diff(current_time, self.last_touch_time) < threshold_ms
 
     def reset_touch_state(self):
-        """Сбросить состояние касания"""
+        """Сброс состояния залипания"""
         self.is_touching = False
         self.last_touch_time = 0
