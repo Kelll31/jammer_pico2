@@ -1,3 +1,0 @@
-[submodule "pico-touchscr-sdk"]
-	path = pico-touchscr-sdk
-	url = https://github.com/RPiks/pico-touchscr-sdk.git
