@@ -318,7 +318,7 @@ void TftSymbolWrite(screen_control_t *pscr, int sym_x, int sym_y)
     ILI9341_SetOutWriting(pscr->mpHWConfig, pix_tl_x, pix_tl_x + 7, pix_tl_y,
                             pix_tl_y + 7);
 
-    ILI9341_CS_Set(pscr->mpHWConfig, CS_ENABLE);
+    spi_manager_acquire(pscr->mpHWConfig->mGPIO_cs, pscr->mpHWConfig->mSPI_freq);
 
     uint8_t *psym_box = pscr->mpColorBuffer + sym_y * TEXT_WIDTH + sym_x;
     const int paper = (*psym_box >> 3) & 0b111;
@@ -339,7 +339,7 @@ void TftSymbolWrite(screen_control_t *pscr, int sym_x, int sym_y)
                             8 * sizeof(uint16_t));
     }
 
-    ILI9341_CS_Set(pscr->mpHWConfig, CS_DISABLE);
+    spi_manager_release(pscr->mpHWConfig->mGPIO_cs);
 
     *psym_box &= ~(1<<6);  // Clear 'need update' bit.
 }

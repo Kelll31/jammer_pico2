@@ -30,6 +30,10 @@ int main() {
     touch_control_t *pTouchCtl= &pUI->mTouchCtl;
 
     // 3. Инициализируем дисплей ILI9341
+    gpio_init(PIN_ILI9341_BLK);
+    gpio_set_dir(PIN_ILI9341_BLK, GPIO_OUT);
+    gpio_put(PIN_ILI9341_BLK, 1);
+
     ili9341_config_t ili9341_hw_config;
     pScrCtl->mpHWConfig = &ili9341_hw_config;
     ILI9341_Init(pScrCtl->mpHWConfig, SPI_PORT, SPI0_BAUDRATE_ILI9341,
