@@ -7,6 +7,7 @@
 #define HOME_SCREEN_H
 
 #include "config.h"
+#include "screen_manager.h"
 
 // ==========================================
 // ТИПЫ ДАННЫХ

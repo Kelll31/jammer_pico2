@@ -6,12 +6,11 @@
 #include "cc1101_hal.h"
 #include "ipc_core.h"
 #include "screen_manager.h"
-#include "jammer_pwm.h"
-#include "queue.h"
-#include "gpio.h"
-#include "time.h"
+#include "pico/util/queue.h"
 #include "hardware/gpio.h"
+#include "hardware/timer.h"
 #include "hardware/irq.h"
+#include "jammer_pwm.h"
 
 #include <ili9341.h>
 #include <msp2807_touch.h>
@@ -22,6 +21,7 @@
 // Менеджер экранов
 #include "home_screen.h"
 #include "stub_screen.h"
+#include "jammer_pwm.h"
 
 // Прототип функции второго ядра (будет реализована на Этапе 4)
 void core1_entry(void);

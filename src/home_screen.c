@@ -5,7 +5,6 @@
 
 #include "config.h"
 #include "screen_manager.h"
-#include "module.h"
 #include "screen_draw.h"
 #include <stdio.h>
 #include <string.h>
@@ -13,8 +12,7 @@
 #include <msp2807_touch.h>
 #include <ui_context.h>
 #include <ui_protos.h>
-#include "GetUIContext.h"
-#include "screen_touch_in_rect.h"
+#include "home_screen.h"
 
 // ==========================================
 // КОНФИГУРАЦИЯ HOME SCREEN
@@ -39,6 +37,8 @@
 // ==========================================
 // ДАННЫЕ ИКОНОК (BITMAP 1bpp примеры)
 // ==========================================
+
+#include "frame_rect.h"
 
 // Простая иконка "молния" для джаммера (16x16)
 static const uint8_t icon_jammer[] = {
@@ -169,7 +169,7 @@ typedef struct {
 
 static const module_info_t s_modules[] = {
     {MODULE_JAMMER,   "Jammer",   icon_jammer,   kRed,     SCREEN_JAMMER},
-    {MODULE_SUBGHZ,   "Sub-GHz",  icon_subghz,   kOrange,  SCREEN_SUBGHZ},
+    {MODULE_SUBGHZ,   "Sub-GHz",  icon_subghz,   kYellow,  SCREEN_SUBGHZ},
     {MODULE_RADIO,    "Radio",    icon_radio,    kBlue,    SCREEN_RADIO},
     {MODULE_SPECTRUM, "Spectrum", icon_spectrum, kGreen,   SCREEN_SPECTRUM},
     {MODULE_SETTINGS, "Settings", icon_settings, kCyan,    SCREEN_SETTINGS},
@@ -212,7 +212,7 @@ static void home_screen_draw(void)
     screen_control_t *pScr = &pUI->mScreenCtl;
     
     // Очистка экрана
-    TftFillRect(pScr, 0, 0, HOME_SCREEN_WIDTH, HOME_SCREEN_HEIGHT, kBlack);
+    TftClearScreenBuffer(pScr, kBlack, kWhite);
     
     // Отрисовка статус-бара
     screen_draw_status_bar(pScr, mgr->battery_mv, mgr->core1_active, mgr->current_freq);
@@ -254,7 +254,7 @@ static void home_screen_touch(int x, int y)
         const module_info_t *mod = &s_modules[i];
         frame_rect *rect = &s_home_ctx.icon_touch_rects[mod->id];
         
-        if (screen_touch_in_rect(rect->mTlx, rect->mTly, rect->mWidth, rect->mHeight, x, y)) {
+        if (IsInsideRect(rect, x, y)) {
             // Переход к соответствующему экрану
             if (mod->target_screen != SCREEN_NONE) {
                 screen_manager_navigate(mod->target_screen);
