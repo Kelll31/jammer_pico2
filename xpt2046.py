@@ -9,34 +9,46 @@ from machine import Pin, SPI
 from spi_manager import spi0_manager
 
 # Каналы для измерения
-XPT2046_CHANNEL_X = 0x5   # Канал X
-XPT2046_CHANNEL_Y = 0x1   # Канал Y
+XPT2046_CHANNEL_X = 0x5  # Канал X
+XPT2046_CHANNEL_Y = 0x1  # Канал Y
 XPT2046_CHANNEL_Z1 = 0x3  # Канал Z1 (для измерения давления)
 XPT2046_CHANNEL_Z2 = 0x4  # Канал Z2 (для измерения давления)
 
+
 class XPT2046:
     """Класс для работы с тачскрином XPT2046"""
-    
-    def __init__(self,
-                 irq_pin=config.TOUCH_IRQ_PIN,
-                 spi_freq=2_500_000,  # 2.5 MHz для тачскрина
-                 cal_min_x=config.TOUCH_CAL_MIN_X,
-                 cal_min_y=config.TOUCH_CAL_MIN_Y,
-                 cal_max_x=config.TOUCH_CAL_MAX_X,
-                 cal_max_y=config.TOUCH_CAL_MAX_Y,
-                 min_flick_ms=10,
-                 long_press_ms=500,
-                 beta_shft=2):
-        
+
+    def __init__(
+        self,
+        irq_pin=config.TOUCH_IRQ_PIN,
+        spi_freq=2_500_000,  # 2.5 MHz для тачскрина
+        cal_min_x=config.TOUCH_CAL_MIN_X,
+        cal_min_y=config.TOUCH_CAL_MIN_Y,
+        cal_max_x=config.TOUCH_CAL_MAX_X,
+        cal_max_y=config.TOUCH_CAL_MAX_Y,
+        min_flick_ms=10,
+        long_press_ms=500,
+        beta_shft=2,
+    ):
+
         self.spi_freq = spi_freq
 
         # Сохранение калибровочной матрицы
-        from touch_calibration import CalibrationMat
-        self.cmat = CalibrationMat()
-        
-        # Инициализация пинов
+        try:
+            from touch_calibration import CalibrationMat
+
+            self.cmat = CalibrationMat()
+        except ImportError:
+
+            class DummyMat:
+                KX1, KX2, KX3 = 0, 0, 0
+                KY1, KY2, KY3 = 0, 0, 0
+
+            self.cmat = DummyMat()
+
+        # Инициализация пинов (IRQ подтянут к питанию, срабатывает по нулю)
         self.irq = Pin(irq_pin, Pin.IN, Pin.PULL_UP)
-        
+
         # Переменные для фильтрации и IPC
         self.lock = _thread.allocate_lock()
         self.last_x = 0
@@ -45,7 +57,7 @@ class XPT2046:
         self.yf = 0
         self.last_pressure = 0
         self.last_touch_time = 0
-        
+
         # Параметры фильтра
         self.min_flick_ms = min_flick_ms
         self.long_press_ms = long_press_ms
@@ -53,25 +65,45 @@ class XPT2046:
 
         # Флаг касания
         self.is_touching = False
-        
-        # Проверка доступности чипа
+
+        # Проверка доступности чипа (теперь корректная)
         if not self._check_presence():
-            print("WARNING: Touch screen XPT2046 not detected!")
-    
+            print("WARNING: Touch screen XPT2046 SPI connection failed!")
+        else:
+            print("XPT2046 Touch screen initialized.")
+
     def _check_presence(self):
-        """Проверка наличия чипа XPT2046"""
+        """
+        Проверка наличия чипа XPT2046.
+        Поскольку XPT2046 - "глупый" АЦП без регистра ID,
+        чтение ненажатого экрана дает 0 или 4095.
+        Поэтому мы просто делаем тестовую транзакцию, чтобы убедиться,
+        что шина SPI отвечает и не вызывает аппаратных исключений.
+        """
         try:
-            # Пробуем прочитать значение канала X
-            value = self._read_channel(XPT2046_CHANNEL_X)
-            return value != 0 and value != 0xFFF
-        except:
+            with spi0_manager.acquire_touch(self.spi_freq) as spi:
+                tx_data = bytearray([0x80, 0x00, 0x00])  # Dummy read
+                rx_data = bytearray(3)
+                spi.write_readinto(tx_data, rx_data)
+            return True
+        except Exception as e:
+            print(f"XPT2046 SPI Error: {e}")
             return False
-    
+
     def _read_channel(self, channel, spi):
         """Чтение значения с аналогового канала (внутри лок-контекста)"""
-        tx_data = bytearray([0x80 | (channel << 4), 0x00, 0x00])
+        # Команда: S=1 | A2 A1 A0 | MODE=0 (12-bit) | SER/DFR=0 (Differential) | PD1 PD0=00 (IRQ Enable)
+        cmd = 0x80 | (channel << 4)
+        tx_data = bytearray([cmd, 0x00, 0x00])
         rx_data = bytearray(3)
+
+        # ПЕРВЫЙ ПРОХОД (Dummy read):
+        # Обязательно нужен для стабилизации АЦП при переключении между осями X и Y!
         spi.write_readinto(tx_data, rx_data)
+
+        # ВТОРОЙ ПРОХОД (Реальные данные):
+        spi.write_readinto(tx_data, rx_data)
+
         result = ((rx_data[1] << 8) | rx_data[2]) >> 3
         return result
 
@@ -81,13 +113,13 @@ class XPT2046:
             raw_x = self._read_channel(XPT2046_CHANNEL_X, spi)
             raw_y = self._read_channel(XPT2046_CHANNEL_Y, spi)
             return raw_x, raw_y
-    
+
     def is_touched(self):
-        """Проверка состояния прерывания (нажатия)"""
+        """Проверка состояния прерывания (нажатия). IRQ активен в LOW"""
         return self.irq.value() == 0
-    
+
     def get_raw_touch(self):
-        """Опрос тачскрина с low-pass фильтрацией (из C кода) без блокирующих задержек"""
+        """Опрос тачскрина с low-pass фильтрацией (без блокирующих задержек)"""
         if self.beta_shft > 0:
             if self.is_touched():
                 now_ms = time.ticks_ms()
@@ -114,8 +146,12 @@ class XPT2046:
                         self.last_x = raw_x
                         self.last_y = raw_y
 
-                        self.xf += ((raw_x << 14) - self.xf + (1 << (self.beta_shft - 1))) >> self.beta_shft
-                        self.yf += ((raw_y << 14) - self.yf + (1 << (self.beta_shft - 1))) >> self.beta_shft
+                        self.xf += (
+                            (raw_x << 14) - self.xf + (1 << (self.beta_shft - 1))
+                        ) >> self.beta_shft
+                        self.yf += (
+                            (raw_y << 14) - self.yf + (1 << (self.beta_shft - 1))
+                        ) >> self.beta_shft
 
                         filtered_x = self.xf >> 14
                         filtered_y = self.yf >> 14
@@ -134,7 +170,7 @@ class XPT2046:
     def read_touch(self):
         """Обёртка для совместимости с существующим кодом"""
         return self.get_raw_touch()
-    
+
     def convert_to_screen(self, raw_x, raw_y, display_width=None, display_height=None):
         """Преобразование сырых значений в экранные координаты"""
         from touch_calibration import touch_transform_coords
@@ -145,7 +181,7 @@ class XPT2046:
             display_height = config.DISPLAY_HEIGHT
 
         screen_x, screen_y = touch_transform_coords(self.cmat, raw_x, raw_y)
-        
+
         # Ограничение значений
         if screen_x < 0:
             screen_x = 0
@@ -157,61 +193,64 @@ class XPT2046:
             screen_y = display_height - 1
 
         return screen_x, screen_y
-    
+
     def get_touch_coordinates(self, display_width=None, display_height=None):
         """Получить координаты касания в экранных координатах"""
         raw_x, raw_y, valid = self.get_raw_touch()
-        
+
         if not valid:
             return None, None, False
-        
-        screen_x, screen_y = self.convert_to_screen(raw_x, raw_y, display_width, display_height)
+
+        screen_x, screen_y = self.convert_to_screen(
+            raw_x, raw_y, display_width, display_height
+        )
         return screen_x, screen_y, True
-    
+
     def calibrate(self, points=None):
         """
         Калибровка тачскрина
-        
-        points: список из 4 точек [(x1, y1), (x2, y2), (x3, y3), (x4, y4)]
-                где x,y - экранные координаты для калибровки
         """
         if points is None:
             # Точки по умолчанию: углы экрана
             points = [
-                (50, 50),                    # Левый верхний
-                (config.DISPLAY_WIDTH - 50, 50),      # Правый верхний
-                (config.DISPLAY_WIDTH - 50, config.DISPLAY_HEIGHT - 50),  # Правый нижний
-                (50, config.DISPLAY_HEIGHT - 50)      # Левый нижний
+                (50, 50),  # Левый верхний
+                (config.DISPLAY_WIDTH - 50, 50),  # Правый верхний
+                (
+                    config.DISPLAY_WIDTH - 50,
+                    config.DISPLAY_HEIGHT - 50,
+                ),  # Правый нижний
+                (50, config.DISPLAY_HEIGHT - 50),  # Левый нижний
             ]
-        
+
         print("Калибровка тачскрина. Касайтесь указанных точек...")
-        
+
         raw_points = []
-        
+
         for i, (screen_x, screen_y) in enumerate(points):
             print(f"Точка {i+1}: коснитесь ({screen_x}, {screen_y})")
-            
+
             # Ждём касания
             while not self.is_touched():
                 time.sleep(0.01)
-            
+
             # Читаем сырые координаты.
             raw_x, raw_y, valid = self.get_raw_touch()
             # Подождём немного и перечитаем для фильтрации
             time.sleep_ms(100)
             raw_x, raw_y, valid = self.get_raw_touch()
-            
+
             if valid:
                 raw_points.append((raw_x, raw_y))
                 print(f"  Сырые значения: X={raw_x}, Y={raw_y}")
-            
+
             # Ждём отпускания
             while self.is_touched():
                 time.sleep(0.01)
-            
+
             time.sleep(0.5)
-        
+
         from touch_calibration import calculate_calibration_mat
+
         cmat = calculate_calibration_mat(points, raw_points)
         if cmat is not None:
             self.cmat = cmat
@@ -220,31 +259,31 @@ class XPT2046:
 
         print("Ошибка калибровки.")
         return False
-    
+
     def get_calibration(self):
         """Получить текущую калибровочную матрицу"""
         return self.cmat
-    
+
     def set_calibration(self, cmat_dict):
         """Установить калибровочную матрицу из словаря"""
         if not cmat_dict:
             return
 
-        self.cmat.KX1 = cmat_dict.get('kx1', 0.0)
-        self.cmat.KX2 = cmat_dict.get('kx2', 0.0)
-        self.cmat.KX3 = cmat_dict.get('kx3', 0.0)
-        self.cmat.KY1 = cmat_dict.get('ky1', 0.0)
-        self.cmat.KY2 = cmat_dict.get('ky2', 0.0)
-        self.cmat.KY3 = cmat_dict.get('ky3', 0.0)
-    
+        self.cmat.KX1 = cmat_dict.get("kx1", 0.0)
+        self.cmat.KX2 = cmat_dict.get("kx2", 0.0)
+        self.cmat.KX3 = cmat_dict.get("kx3", 0.0)
+        self.cmat.KY1 = cmat_dict.get("ky1", 0.0)
+        self.cmat.KY2 = cmat_dict.get("ky2", 0.0)
+        self.cmat.KY3 = cmat_dict.get("ky3", 0.0)
+
     def is_touch_held(self, threshold_ms=1000):
-        """Проверка, удерживается ли касание"""
+        """Проверка, удерживается ли касание (используя ticks_diff для защиты от переполнения)"""
         if not self.is_touching:
             return False
-        
+
         current_time = time.ticks_ms()
-        return (current_time - self.last_touch_time) < threshold_ms
-    
+        return time.ticks_diff(current_time, self.last_touch_time) < threshold_ms
+
     def reset_touch_state(self):
         """Сбросить состояние касания"""
         self.is_touching = False

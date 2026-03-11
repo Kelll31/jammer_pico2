@@ -79,7 +79,7 @@ class GlobalStatusBar:
 
 class UIButton:
     """Простая кнопка UI"""
-    
+
     def __init__(self, x, y, width, height, label,
                  color=config.UI_FONT_COLOR,
                  bg_color=config.UI_BUTTON_BG,
@@ -93,7 +93,7 @@ class UIButton:
         self.bg_color = bg_color
         self.active_bg_color = active_bg_color
         self.pressed = False
-        self.on_click = None
+        self.on_click = None  # type: ignore
     
     def contains(self, x, y):
         """Проверить, содержит ли кнопка точку"""

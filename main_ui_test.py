@@ -5,14 +5,16 @@
 
 import time
 import config
+from spi_manager import init_managers, spi0_manager
+
+# Сначала инициализируем менеджеры, потом импортируем драйверы
+init_managers()
+
 from ili9341 import ILI9341
 from xpt2046 import XPT2046
-from spi_manager import init_managers, spi0_manager
 
 def run_integration_test():
     print("Инициализация SPI менеджеров...")
-    spi0, spi1, i2c = init_managers()
-
     print("Инициализация ILI9341 дисплея...")
     display = ILI9341()
 

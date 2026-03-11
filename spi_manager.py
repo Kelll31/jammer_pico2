@@ -19,7 +19,7 @@ from machine import Pin, SPI
 
 class SPI0_Manager:
     """Управление SPI0 шиной для дисплея и тачскрина (Core 0)"""
-    
+
     def __init__(self):
         # Инициализация SPI0
         self.spi = SPI(config.DISPLAY_SPI_ID,
@@ -27,30 +27,31 @@ class SPI0_Manager:
                       sck=Pin(config.DISPLAY_SCK_PIN),
                       mosi=Pin(config.DISPLAY_MOSI_PIN),
                       miso=Pin(config.DISPLAY_MISO_PIN))
-        
+
         # CS пины для устройств на SPI0
         self.display_cs = Pin(config.DISPLAY_CS_PIN, Pin.OUT, value=1)
         self.touch_cs = Pin(config.TOUCH_CS_PIN, Pin.OUT, value=1)
-        
+
         # Текущее активное устройство
         self.active_device = None
-        self.old_baudrate = config.DISPLAY_SPI_FREQ
-        
+        self.current_baudrate = config.DISPLAY_SPI_FREQ
+
         # Мьютекс для безопасности (если внутри Core 0 будут потоки)
         self.lock = _thread.allocate_lock()
-    
+
     def _set_cs_high_all(self):
         """Установить все CS в HIGH (неактивно)"""
         self.display_cs.value(1)
         self.touch_cs.value(1)
-    
+
     def _configure_for_device(self, device, baudrate=None):
         """Настроить SPI для конкретного устройства"""
-        if baudrate and baudrate != self.spi.baudrate():
+        if baudrate and baudrate != self.current_baudrate:
             self.spi.init(baudrate=baudrate,
                          sck=Pin(config.DISPLAY_SCK_PIN),
                          mosi=Pin(config.DISPLAY_MOSI_PIN),
                          miso=Pin(config.DISPLAY_MISO_PIN))
+            self.current_baudrate = baudrate
     
     def acquire_display(self, baudrate=config.DISPLAY_SPI_FREQ):
         """Получить доступ к дисплею (контекстный менеджер)"""
@@ -103,44 +104,45 @@ class SPI1_Manager:
                       sck=Pin(config.SPI1_SCK_PIN),
                       mosi=Pin(config.SPI1_MOSI_PIN),
                       miso=Pin(config.SPI1_MISO_PIN))
-        
+
         # CS пины для RF-модулей
         self.cc1101_cs = Pin(config.CC1101_CS_PIN, Pin.OUT, value=1)
         self.nrf24_cs = Pin(config.NRF24L01_CS_PIN, Pin.OUT, value=1)
         self.sx1278_cs = Pin(config.SX1278_CS_PIN, Pin.OUT, value=1)
-        
+
         # Дополнительные управляющие пины
         self.nrf24_ce = Pin(config.NRF24L01_CE_PIN, Pin.OUT, value=0)
         self.sx1278_rst = Pin(config.SX1278_RST_PIN, Pin.OUT, value=1)
-        
+
         # Текущее активное устройство
         self.active_device = None
-        self.old_baudrate = config.SPI1_FREQ
-        
+        self.current_baudrate = config.SPI1_FREQ
+
         # Мьютекс для безопасности внутри Core 1
         self.lock = _thread.allocate_lock()
-        
+
         # Специфичные baudrate для каждого устройства
         self.device_baudrates = {
             "cc1101": 5_000_000,   # 5 MHz для CC1101
             "nrf24": 8_000_000,    # 8 MHz для NRF24L01
             "sx1278": 10_000_000,  # 10 MHz для SX1278
         }
-    
+
     def _set_cs_high_all(self):
         """Установить все CS в HIGH (неактивно)"""
         self.cc1101_cs.value(1)
         self.nrf24_cs.value(1)
         self.sx1278_cs.value(1)
-    
+
     def _configure_for_device(self, device_name):
         """Настроить SPI baudrate для конкретного устройства"""
         baudrate = self.device_baudrates.get(device_name, config.SPI1_FREQ)
-        if baudrate != self.spi.baudrate():
+        if baudrate != self.current_baudrate:
             self.spi.init(baudrate=baudrate,
                          sck=Pin(config.SPI1_SCK_PIN),
                          mosi=Pin(config.SPI1_MOSI_PIN),
                          miso=Pin(config.SPI1_MISO_PIN))
+            self.current_baudrate = baudrate
     
     def acquire_cc1101(self):
         """Получить доступ к CC1101 (контекстный менеджер)"""
