@@ -41,16 +41,15 @@ ILI9341_GAMMASET = 0xF2
 ILI9341_GMCTRP1 = 0xE0
 ILI9341_GMCTRN1 = 0xE1
 
+from spi_manager import spi0_manager
+
 class ILI9341:
     """Класс для работы с дисплеем ILI9341 с двойной буферизацией"""
     
-    def __init__(self, spi_id=config.DISPLAY_SPI_ID, 
+    def __init__(self,
                  dc_pin=config.DISPLAY_DC_PIN,
                  rst_pin=config.DISPLAY_RST_PIN,
-                 cs_pin=config.DISPLAY_CS_PIN,
                  blk_pin=config.DISPLAY_BLK_PIN,
-                 sck_pin=config.DISPLAY_SCK_PIN,
-                 mosi_pin=config.DISPLAY_MOSI_PIN,
                  width=config.DISPLAY_WIDTH,
                  height=config.DISPLAY_HEIGHT,
                  spi_freq=config.DISPLAY_SPI_FREQ):
@@ -58,16 +57,12 @@ class ILI9341:
         self.width = width
         self.height = height
         self.rotation = 0
+        self.spi_freq = spi_freq
         
         # Инициализация пинов
         self.dc = Pin(dc_pin, Pin.OUT, value=1)
         self.rst = Pin(rst_pin, Pin.OUT, value=1)
-        self.cs = Pin(cs_pin, Pin.OUT, value=1)
         self.blk = Pin(blk_pin, Pin.OUT, value=0)
-        
-        # Инициализация SPI
-        self.spi = SPI(spi_id, baudrate=spi_freq, 
-                      sck=Pin(sck_pin), mosi=Pin(mosi_pin))
         
         # Двойная буферизация: создаем два буфера
         self.buffer_size = width * height * 2  # 2 байта на пиксель (RGB565)
@@ -96,89 +91,86 @@ class ILI9341:
         self.fill_screen(config.COLOR_BLACK)
         self.swap_buffers()
     
-    def _write_command(self, cmd):
+    def write_cmd(self, cmd):
         """Запись команды в дисплей"""
-        self.dc.value(0)
-        self.cs.value(0)
-        self.spi.write(bytearray([cmd]))
-        self.cs.value(1)
+        with spi0_manager.acquire_display(self.spi_freq) as spi:
+            self.dc.value(0)
+            spi.write(bytearray([cmd]))
     
-    def _write_data(self, data):
+    def write_data(self, data):
         """Запись данных в дисплей"""
-        self.dc.value(1)
-        self.cs.value(0)
-        if isinstance(data, int):
-            self.spi.write(bytearray([data]))
-        else:
-            self.spi.write(data)
-        self.cs.value(1)
+        with spi0_manager.acquire_display(self.spi_freq) as spi:
+            self.dc.value(1)
+            if isinstance(data, int):
+                spi.write(bytearray([data]))
+            else:
+                spi.write(data)
     
     def _write_data_buffer(self, data):
         """Запись буфера данных"""
-        self.dc.value(1)
-        self.cs.value(0)
-        self.spi.write(data)
-        self.cs.value(1)
+        with spi0_manager.acquire_display(self.spi_freq) as spi:
+            self.dc.value(1)
+            spi.write(data)
     
     def _init_display(self):
         """Инициализация дисплея ILI9341"""
         # Аппаратный сброс
         self.rst.value(0)
-        time.sleep(0.1)
+        time.sleep_ms(100)
         self.rst.value(1)
-        time.sleep(0.1)
+        time.sleep_ms(100)
         
         # Программный сброс
-        self._write_command(ILI9341_SWRESET)
-        time.sleep(0.15)
+        self.write_cmd(ILI9341_SWRESET)
+        time.sleep_ms(150)
         
         # Выход из спящего режима
-        self._write_command(ILI9341_SLPOUT)
-        time.sleep(0.12)
+        self.write_cmd(ILI9341_SLPOUT)
+        time.sleep_ms(120)
         
         # Установка цветового режима: 16 бит (RGB565)
-        self._write_command(ILI9341_PIXFMT)
-        self._write_data(0x55)
+        self.write_cmd(ILI9341_PIXFMT)
+        self.write_data(0x55)
         
         # Управление порядком данных памяти
-        self._write_command(ILI9341_MADCTL)
-        self._write_data(0x48)  # Порядок RGB, портретная ориентация
+        self.write_cmd(ILI9341_MADCTL)
+        self.write_data(0x48)  # Порядок RGB, портретная ориентация
         
         # Установка частоты кадров
-        self._write_command(ILI9341_FRMCTR1)
-        self._write_data(0x00)
-        self._write_data(0x1B)
+        self.write_cmd(ILI9341_FRMCTR1)
+        self.write_data(0x00)
+        self.write_data(0x1B)
         
         # Управление гамма-коррекцией
-        self._write_command(ILI9341_GAMMASET)
-        self._write_data(0x01)
+        self.write_cmd(ILI9341_GAMMASET)
+        self.write_data(0x01)
         
         # Установка положительной гаммы
-        self._write_command(ILI9341_GMCTRP1)
-        gamma_pos = [
-            0x0F, 0x2F, 0x2F, 0x0C, 0x0E, 0x08, 0x4E, 0xF1,
-            0x37, 0x07, 0x10, 0x03, 0x0E, 0x09, 0x00
-        ]
-        self._write_data(bytearray(gamma_pos))
+        self.write_cmd(ILI9341_GMCTRP1)
+        gamma_pos = bytearray([
+            0x0f, 0x31, 0x2b, 0x0c, 0x0e, 0x08, 0x4e, 0xf1,
+            0x37, 0x07, 0x10, 0x03, 0x0e, 0x09, 0x00
+        ])
+        self.write_data(gamma_pos)
         
         # Установка отрицательной гаммы
-        self._write_command(ILI9341_GMCTRN1)
-        gamma_neg = [
-            0x00, 0x10, 0x10, 0x02, 0x11, 0x06, 0x2B, 0x33,
-            0x3F, 0x07, 0x04, 0x08, 0x03, 0x0E, 0x09
-        ]
-        self._write_data(bytearray(gamma_neg))
+        self.write_cmd(ILI9341_GMCTRN1)
+        gamma_neg = bytearray([
+            0x00, 0x0e, 0x14, 0x03, 0x11, 0x07, 0x31, 0xc1,
+            0x48, 0x08, 0x0f, 0x0c, 0x31, 0x36, 0x0f
+        ])
+        self.write_data(gamma_neg)
         
         # Включение инверсии
-        self._write_command(ILI9341_INVON)
+        self.write_cmd(ILI9341_INVON)
         
         # Нормальный режим отображения
-        self._write_command(ILI9341_NORON)
-        time.sleep(0.01)
+        self.write_cmd(ILI9341_NORON)
+        time.sleep_ms(10)
         
         # Включение дисплея
-        self._write_command(ILI9341_DISPON)
-        time.sleep(0.1)
+        self.write_cmd(ILI9341_DISPON)
+        time.sleep_ms(100)
     
     def _set_address_window(self, x0, y0, x1, y1):
         """Установка области дисплея для записи"""
@@ -190,7 +182,7 @@ class ILI9341:
         self.last_y = y0
         
         # Установка столбца
-        self._write_command(ILI9341_CASET)
+        self.write_cmd(ILI9341_CASET)
         data = bytearray([
             (x0 >> 8) & 0xFF, x0 & 0xFF,
             (x1 >> 8) & 0xFF, x1 & 0xFF
@@ -198,7 +190,7 @@ class ILI9341:
         self._write_data_buffer(data)
         
         # Установка строки
-        self._write_command(ILI9341_RASET)
+        self.write_cmd(ILI9341_RASET)
         data = bytearray([
             (y0 >> 8) & 0xFF, y0 & 0xFF,
             (y1 >> 8) & 0xFF, y1 & 0xFF
@@ -206,7 +198,7 @@ class ILI9341:
         self._write_data_buffer(data)
         
         # Команда записи в память
-        self._write_command(ILI9341_RAMWR)
+        self.write_cmd(ILI9341_RAMWR)
     
     def swap_buffers(self):
         """Обмен буферов: отображаем активный буфер"""
@@ -360,8 +352,8 @@ class ILI9341:
         elif self.rotation == 3:  # Ландшафтная 270°
             madctl = ILI9341_MADCTL_MX | ILI9341_MADCTL_MY | ILI9341_MADCTL_MV | ILI9341_MADCTL_RGB
         
-        self._write_command(ILI9341_MADCTL)
-        self._write_data(madctl)
+        self.write_cmd(ILI9341_MADCTL)
+        self.write_data(madctl)
     
     def set_backlight(self, brightness):
         """Установить яркость подсветки (0-100)"""
@@ -372,19 +364,19 @@ class ILI9341:
     
     def display_on(self):
         """Включить дисплей"""
-        self._write_command(ILI9341_DISPON)
+        self.write_cmd(ILI9341_DISPON)
     
     def display_off(self):
         """Выключить дисплей"""
-        self._write_command(ILI9341_DISPOFF)
+        self.write_cmd(ILI9341_DISPOFF)
     
     def sleep_in(self):
         """Перевести в спящий режим"""
-        self._write_command(ILI9341_SLPIN)
+        self.write_cmd(ILI9341_SLPIN)
     
     def sleep_out(self):
         """Вывести из спящего режима"""
-        self._write_command(ILI9341_SLPOUT)
+        self.write_cmd(ILI9341_SLPOUT)
     
     def get_width(self):
         """Получить ширину дисплея с учётом ориентации"""

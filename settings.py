@@ -33,10 +33,12 @@ class Settings:
                 'custom_freq_hz': 0
             },
             'touch_calibration': {
-                'min_x': config.TOUCH_CAL_MIN_X,
-                'max_x': config.TOUCH_CAL_MAX_X,
-                'min_y': config.TOUCH_CAL_MIN_Y,
-                'max_y': config.TOUCH_CAL_MAX_Y
+                'kx1': 0.0,
+                'kx2': 0.0,
+                'kx3': 0.0,
+                'ky1': 0.0,
+                'ky2': 0.0,
+                'ky3': 0.0
             },
             'display': {
                 'brightness': 80,
@@ -148,16 +150,20 @@ class Settings:
     # ============================================================================
     
     def get_touch_calibration(self):
-        """Получить калибровку тачскрина"""
+        """Получить калибровку тачскрина (матрицу)"""
         return self.data.get('touch_calibration', {})
     
-    def set_touch_calibration(self, min_x, max_x, min_y, max_y):
-        """Установить калибровку тачскрина"""
+    def set_touch_calibration(self, cmat):
+        """Установить калибровку тачскрина из объекта CalibrationMat"""
+        if cmat is None:
+            return
         self.data['touch_calibration'] = {
-            'min_x': min_x,
-            'max_x': max_x,
-            'min_y': min_y,
-            'max_y': max_y
+            'kx1': cmat.KX1,
+            'kx2': cmat.KX2,
+            'kx3': cmat.KX3,
+            'ky1': cmat.KY1,
+            'ky2': cmat.KY2,
+            'ky3': cmat.KY3
         }
     
     # ============================================================================
@@ -260,7 +266,7 @@ class Settings:
             print(f"Пользовательская частота: {jammer['custom_freq_hz']} Hz")
         
         touch = self.data['touch_calibration']
-        print(f"Калибровка тачскрина: X({touch['min_x']}-{touch['max_x']}), Y({touch['min_y']}-{touch['max_y']})")
+        print(f"Калибровка тачскрина: KX1={touch.get('kx1', 0):.4f}, KY1={touch.get('ky1', 0):.4f} ...")
         
         display = self.data['display']
         print(f"Дисплей: яркость {display['brightness']}%, поворот {display['rotation']}")
