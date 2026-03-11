@@ -43,7 +43,7 @@ add_executable(kelll31_jammer
     src/cc1101_hal.c
     src/ipc_core.c
     # Исходники pico-touchscr-sdk
-    lib/pico-touchscr-sdk/lib/assert.c
+    lib/pico-touchscr-sdk/lib/my_assert.c
     lib/pico-touchscr-sdk/ili9341/ili9341.c
     lib/pico-touchscr-sdk/touch/msp2807_touch.c
     lib/pico-touchscr-sdk/touch/msp2807_calibration.c
@@ -59,6 +59,7 @@ add_executable(kelll31_jammer
     lib/pico-widgets/widgets/CallsignEventProc.c
     lib/pico-widgets/widgets/CalibrationEventProc.c
     lib/pico-widgets/widgets/TerminalEventProc.c
+    lib/pico-widgets/debug/tftlogger.c
     # src/core1_task.c # (раскомментировать при добавлении таски для второго ядра)
 )
 
@@ -75,6 +76,7 @@ target_include_directories(kelll31_jammer PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/frame
     ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/ui
     ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/widgets
+    ${CMAKE_CURRENT_LIST_DIR}/lib/pico-widgets/debug
     ${CMAKE_CURRENT_LIST_DIR}/lib/pico-touchscr-sdk/lib
     ${CMAKE_CURRENT_LIST_DIR}
 )

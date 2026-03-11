@@ -50,7 +50,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <lib/assert.h>
+#include <lib/my_assert.h>
 #include <ili9341.h>
 
 #include "frame_type.h"
