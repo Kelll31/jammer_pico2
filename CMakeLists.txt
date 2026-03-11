@@ -100,4 +100,5 @@ pico_enable_stdio_usb(kelll31_jammer 1)
 pico_enable_stdio_uart(kelll31_jammer 0)
 
 # Генерируем uf2, bin, hex файлы для прошивки
-pico_add_extra_outputs(kelll31_jammer)
+
+target_sources(kelll31_jammer PRIVATE  src/screen_manager.c src/screen_draw.c)

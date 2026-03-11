@@ -6,22 +6,19 @@
  * микроконтроллеров RP2040 / RP2350.
  */
 
+#ifndef CONFIG_H
+#define CONFIG_H
+
 #include <stdbool.h>
 
 // ==========================================
 // ТИПЫ ДАННЫХ ДЛЯ UI
 // ==========================================
 
-typedef enum {
-    kBlack,
-    kBlue,
-    kRed,
-    kMagenta,
-    kGreen,
-    kCyan,
-    kYellow,
-    kWhite
-} color_t;
+// color_t is defined in ili9341.h from pico-touchscr-sdk
+
+#ifndef CONFIG_TYPES_H
+#define CONFIG_TYPES_H
 
 typedef enum {
     SCREEN_NONE = 0,
@@ -42,18 +39,15 @@ typedef enum {
     SCREEN_EVENT_DEINIT
 } screen_event_t;
 
-typedef struct {
-    int mTlx;
-    int mTly;
-    int mWidth;
-    int mHeight;
-} frame_rect;
+// frame_rect is defined in frame_rect.h from pico-widgets
 
 typedef struct {
     int x;
     int y;
     bool is_press;
 } screen_touch_data_t;
+
+#endif // CONFIG_TYPES_H
 
 // ==========================================
 // НАСТРОЙКИ ОБЩЕЙ ШИНЫ SPI0

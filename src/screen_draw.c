@@ -41,7 +41,11 @@ void screen_draw_flipper_icon(screen_control_t *pscr, int x, int y, int size,
 void screen_draw_status_bar(screen_control_t *pscr, int battery_mv, bool core1_active, int current_freq)
 {
     // Фон статус-бара
-    TftFillRect(pscr, 0, 0, 240, 20, kBlue);
+    for (int y = 0; y < 20; y++) {
+        for (int x = 0; x < 240; x++) {
+            TftPutPixel(pscr, x, y, kBlue, kBlack);
+        }
+    }
 
     // Иконка батареи
     TftPutLine(pscr, 5, 5, 15, 5);
@@ -59,12 +63,18 @@ void screen_draw_status_bar(screen_control_t *pscr, int battery_mv, bool core1_a
     if (battery_level < 0) battery_level = 0;
 
     for (int i = 0; i < battery_level; i++) {
-        TftFillRect(pscr, 7 + i * 1, 7, 1, 6, kGreen);
+        for (int y = 7; y < 7 + 6; y++) {
+            TftPutPixel(pscr, 7 + i * 1, y, kGreen, kBlack);
+        }
     }
 
     // Иконка активности Core 1
     if (core1_active) {
-        TftFillRect(pscr, 30, 8, 4, 4, kRed);
+        for (int y = 8; y < 8 + 4; y++) {
+            for (int x = 30; x < 30 + 4; x++) {
+                TftPutPixel(pscr, x, y, kRed, kBlack);
+            }
+        }
     }
 
     // Текущая частота
@@ -79,12 +89,16 @@ void screen_draw_status_bar(screen_control_t *pscr, int battery_mv, bool core1_a
 void screen_draw_info_bar(screen_control_t *pscr, const char *firmware_version, uint32_t uptime_seconds)
 {
     // Фон инфо-панели
-    TftFillRect(pscr, 0, 304, 240, 16, kDarkGray);
+    for (int y = 304; y < 304 + 16; y++) {
+        for (int x = 0; x < 240; x++) {
+            TftPutPixel(pscr, x, y, kBlack, kBlack); // As kDarkGray isn't defined, fallback to kBlack
+        }
+    }
 
     // Версия прошивки
     char version_str[32];
     snprintf(version_str, sizeof(version_str), "v%s", firmware_version);
-    TftPutString(pscr, version_str, 5, 308, kWhite, kDarkGray);
+    TftPutString(pscr, version_str, 5, 308, kWhite, kBlack);
 
     // Аптайм
     uint32_t hours = uptime_seconds / 3600;
@@ -93,5 +107,5 @@ void screen_draw_info_bar(screen_control_t *pscr, const char *firmware_version, 
 
     char uptime_str[32];
     snprintf(uptime_str, sizeof(uptime_str), "%02d:%02d:%02d", hours, minutes, seconds);
-    TftPutString(pscr, uptime_str, 180, 308, kWhite, kDarkGray);
+    TftPutString(pscr, uptime_str, 180, 308, kWhite, kBlack);
 }
